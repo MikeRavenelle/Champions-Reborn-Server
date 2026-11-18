@@ -5,7 +5,7 @@ services:
     environment:
       PUBLIC_IP: ${PUBLIC_IP:?set PUBLIC_IP to the address clients connect to}
     ports:
-      - "40810-40830:40810-40830"
+      - "40800-40830:40800-40830"
       - "40900:40900"
       - "40910:40910"
       - "10101:10101/udp"
