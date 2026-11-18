@@ -344,7 +344,10 @@ std::wstring ByteBuffer::read_encrypted_utf16( bool hasBlockLength )
 	decryptedLength = std::min< uint32_t >( decryptedLength, static_cast< uint32_t >( decryptedBuffer.size() ) );
 
 	std::wstring result( decryptedLength / 2, L'\0' );
-	std::memcpy( result.data(), decryptedBuffer.data(), decryptedLength / 2 * sizeof( wchar_t ) );
+	for( size_t i = 0; i < result.size(); ++i )
+	{
+		result[ i ] = static_cast< wchar_t >( decryptedBuffer[ i * 2 ] | ( decryptedBuffer[ i * 2 + 1 ] << 8 ) );
+	}
 
 	return result;
 }
