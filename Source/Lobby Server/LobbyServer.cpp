@@ -51,7 +51,7 @@ void LobbyServer::Start( std::string ip )
 	for( int i = 0; i < 8; i++ )
 	{
 		auto gatewaySocket = OpenListenerSocket( ip, 40800 + i, RealmGameType::CHAMPIONS_OF_NORRATH );
-		if( nullptr == gatewaySocket ) return;
+		if( nullptr == gatewaySocket ) continue; // gateway slots are interchangeable
 
 		gatewaySocket->flag.is_gateway = true;
 		m_gatewaySockets.push_back( gatewaySocket );
@@ -61,7 +61,7 @@ void LobbyServer::Start( std::string ip )
 	for( int i = 0; i < 8; i++ )
 	{
 		auto gatewaySocket = OpenListenerSocket( ip, 40810 + i, RealmGameType::RETURN_TO_ARMS );
-		if( nullptr == gatewaySocket ) return;
+		if( nullptr == gatewaySocket ) continue; // gateway slots are interchangeable
 
 		gatewaySocket->flag.is_gateway = true;
 		m_gatewaySockets.push_back( gatewaySocket );
