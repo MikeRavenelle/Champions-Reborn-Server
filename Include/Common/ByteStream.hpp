@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cmath>
+#include <cstring>
 #include <vector>
 #include <string>
 #include <memory>
@@ -83,3 +85,24 @@ public:
 };
 
 typedef std::shared_ptr< ByteBuffer > sptr_byte_stream;
+
+template < typename T >
+void ByteBuffer::write( T value )
+{
+	write_bytes( reinterpret_cast< const uint8_t * >( &value ), sizeof( T ) );
+}
+
+template < typename T >
+T ByteBuffer::read()
+{
+	if( m_position + sizeof( T ) > m_buffer.size() )
+	{
+		return static_cast< T >( 0 );
+	}
+
+	T value;
+	std::memcpy( &value, &m_buffer[ m_position ], sizeof( T ) );
+	m_position += sizeof( T );
+
+	return value;
+}

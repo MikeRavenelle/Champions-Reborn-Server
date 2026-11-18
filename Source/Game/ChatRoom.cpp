@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "Game/ChatRoomSession.hpp"
 #include "Game/RealmUser.hpp"
 

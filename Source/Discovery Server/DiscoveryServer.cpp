@@ -5,6 +5,7 @@
 //  ║║║╚═╗║  ║ ║╚╗╔╝║╣ ╠╦╝╚╦╝  ╚═╗║╣ ╠╦╝╚╗╔╝║╣ ╠╦╝
 // ═╩╝╩╚═╝╚═╝╚═╝ ╚╝ ╚═╝╩╚═ ╩   ╚═╝╚═╝╩╚═ ╚╝ ╚═╝╩╚═
 
+#include <algorithm>
 #include "Discovery Server/DiscoveryServer.hpp"
 
 #include "Common/ByteStream.hpp"
@@ -45,7 +46,7 @@ void DiscoveryServer::Start( std::string ip, int32_t port )
 	}
 	else
 	{
-		if( InetPtonA( AF_INET, ip.c_str(), &service.sin_addr ) != 1 )
+		if( inet_pton( AF_INET, ip.c_str(), &service.sin_addr ) != 1 )
 		{
 			Log::Error( "Invalid IP address format: {}", ip );
 			closesocket( m_socket );
@@ -59,6 +60,9 @@ void DiscoveryServer::Start( std::string ip, int32_t port )
 		closesocket( m_socket );
 		return;
 	}
+
+	timeval recvTimeout = { 0, 200000 };
+	setsockopt( m_socket, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast< const char * >( &recvTimeout ), sizeof( recvTimeout ) );
 
 	m_running = true;
 	m_thread = std::thread( &DiscoveryServer::Run, this );
@@ -78,11 +82,10 @@ void DiscoveryServer::Stop()
 void DiscoveryServer::Run()
 {
 	sockaddr_in clientAddr;
-	int clientAddrLen = sizeof( clientAddr );
 
 	while( m_running )
 	{
-		std::this_thread::sleep_for( std::chrono::milliseconds( 1 ) );
+		socklen_t clientAddrLen = sizeof( clientAddr );
 
 		auto bytesReceived = recvfrom( m_socket, ( char * )m_recvBuffer.data(), 1024, 0, ( struct sockaddr * )&clientAddr, &clientAddrLen );
 
@@ -118,7 +121,7 @@ void DiscoveryServer::ProcessPacket( sockaddr_in *clientAddr, sptr_byte_stream s
 
 	// Get the users remote IP and Port for discovery.
 	char remoteIp[ INET_ADDRSTRLEN ];
-	InetNtopA( AF_INET, &clientAddr->sin_addr, remoteIp, INET_ADDRSTRLEN );
+	inet_ntop( AF_INET, &clientAddr->sin_addr, remoteIp, INET_ADDRSTRLEN );
 
 	uint16_t remotePort = ntohs( clientAddr->sin_port );
 

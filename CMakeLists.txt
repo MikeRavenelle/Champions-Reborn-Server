@@ -1,0 +1,26 @@
+cmake_minimum_required(VERSION 3.16)
+project(ChampionsRebornServer LANGUAGES C CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+
+file(STRINGS "Champions Reborn Server.vcxproj" PROJECT_LINES REGEX "<ClCompile Include=\"Source")
+set(SERVER_SOURCES)
+foreach(line IN LISTS PROJECT_LINES)
+  string(REGEX REPLACE ".*Include=\"([^\"]+)\".*" "\\1" path "${line}")
+  string(REPLACE "\\" "/" path "${path}")
+  if(NOT path MATCHES "stdafx\\.cpp$" AND EXISTS "${CMAKE_SOURCE_DIR}/${path}")
+    list(APPEND SERVER_SOURCES "${path}")
+  endif()
+endforeach()
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "Champions Reborn Server.vcxproj")
+
+add_library(sqlite3 STATIC Dependency/sqlite/sqlite3.c)
+target_include_directories(sqlite3 PUBLIC Dependency/sqlite)
+
+add_executable(champions-server ${SERVER_SOURCES})
+target_include_directories(champions-server PRIVATE Include)
+target_link_libraries(champions-server PRIVATE sqlite3 pthread ${CMAKE_DL_LIBS})

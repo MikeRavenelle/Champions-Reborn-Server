@@ -14,3 +14,11 @@ The server is currently a work in progress.
 ## 🔧 Dependencies
 
 - [SQLite3](https://www.sqlite.org/index.html) — Used for session and user data storage
+
+## Linux / Docker
+
+```
+PUBLIC_IP=<address clients connect to> docker compose up -d --build
+```
+
+Data (SQLite DB, `config.ini`, logs) lives in the `champions-data` volume. Ports: TCP 40810-40830 (gateways), 40900, 40910; UDP 10101.

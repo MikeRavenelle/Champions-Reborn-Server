@@ -6,8 +6,8 @@
 #include <mutex>
 #include <atomic>
 #include <vector>
-#include <winsock2.h>
-#include <ws2tcpip.h>
+#include "Common/Platform.hpp"
+
 
 #include "Common/ByteStream.hpp"
 

@@ -46,26 +46,6 @@ void ByteBuffer::shrink_to_fit()
 	m_buffer.shrink_to_fit();
 }
 
-template < typename T >
-void ByteBuffer::write( T value )
-{
-	write_bytes( ( uint8_t * )&value, sizeof( T ) );
-}
-
-template < typename T >
-T ByteBuffer::read()
-{
-	if( m_position >= m_buffer.size() )
-	{
-		return (T)0;
-	}
-
-	T value = *( T * )&m_buffer[ m_position ];
-	m_position += sizeof( T );
-
-	return value;
-}
-
 void ByteBuffer::write_utf8( const std::string &str, std::optional<uint32_t> length )
 {
 	if( length.has_value() )

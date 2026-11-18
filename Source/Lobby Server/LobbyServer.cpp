@@ -94,10 +94,10 @@ void LobbyServer::Stop()
 
 sptr_socket LobbyServer::OpenListenerSocket( std::string ip, int32_t port, RealmGameType type )
 {
-	SOCKET sock = ::WSASocket( AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED );
+	SOCKET sock = ::socket( AF_INET, SOCK_STREAM, IPPROTO_TCP );
 	if( sock == INVALID_SOCKET )
 	{
-		Log::Error( "WSASocket() failed on port {}", port );
+		Log::Error( "socket() failed on port {}", port );
 		return nullptr;
 	}
 
@@ -109,12 +109,15 @@ sptr_socket LobbyServer::OpenListenerSocket( std::string ip, int32_t port, Realm
 	{
 		service.sin_addr.s_addr = INADDR_ANY;
 	}
-	else if( InetPtonA( AF_INET, ip.c_str(), &service.sin_addr) != 1 )
+	else if( inet_pton( AF_INET, ip.c_str(), &service.sin_addr) != 1 )
 	{
 		Log::Error( "Invalid IP address format: {}", ip );
 		closesocket( sock );
 		return nullptr;
 	}
+
+	const int reuse = 1;
+	setsockopt( sock, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast< const char * >( &reuse ), sizeof( reuse ) );
 
 	if( bind( sock, reinterpret_cast< SOCKADDR * >( &service ), sizeof( service ) ) == SOCKET_ERROR )
 	{
@@ -144,8 +147,8 @@ sptr_socket LobbyServer::OpenListenerSocket( std::string ip, int32_t port, Realm
 
 void LobbyServer::Run()
 {
-	FD_SET readSet;
-	FD_SET writeSet;
+	fd_set readSet;
+	fd_set writeSet;
 
 	timeval timeout = { 0, 1000 };
 
@@ -154,6 +157,7 @@ void LobbyServer::Run()
 		FD_ZERO( &readSet );
 		FD_ZERO( &writeSet );
 
+		SOCKET maxFd = std::max( m_conSocket->fd, m_rtaSocket->fd );
 		FD_SET( m_conSocket->fd, &readSet );
 		FD_SET( m_rtaSocket->fd, &readSet );
 
@@ -162,6 +166,7 @@ void LobbyServer::Run()
 			if( sock != nullptr && sock->fd != INVALID_SOCKET )
 			{
 				FD_SET( sock->fd, &readSet );
+				maxFd = std::max( maxFd, sock->fd );
 			}
 		}
 
@@ -171,9 +176,10 @@ void LobbyServer::Run()
 		{
 			FD_SET( client->fd, &readSet );
 			FD_SET( client->fd, &writeSet );
+			maxFd = std::max( maxFd, client->fd );
 		}
 
-		auto result = select( 0, &readSet, &writeSet, NULL, &timeout );
+		auto result = select( static_cast< int >( maxFd ) + 1, &readSet, &writeSet, NULL, &timeout );
 
 		if( result == SOCKET_ERROR )
 		{
@@ -255,7 +261,7 @@ void LobbyServer::CheckSocketProblem()
 void LobbyServer::AcceptConnection( sptr_socket srcSocket )
 {
 	sockaddr_in clientInfo{};
-	int32_t addrSize = sizeof( clientInfo );
+	socklen_t addrSize = sizeof( clientInfo );
 
 	SOCKET clientSocket = accept( srcSocket->fd, ( SOCKADDR * )&clientInfo, &addrSize );
 	if( clientSocket == INVALID_SOCKET )
@@ -293,7 +299,7 @@ void LobbyServer::ReadSocket( sptr_socket socket )
 
 	if( bytesReceived == SOCKET_ERROR )
 	{
-		Log::Info( "Socket Error [{}].", WSAGetLastError() );
+		Log::Info( "Socket Error [{}].", Platform::LastSocketError() );
 		socket->flag.disconnected_forced = true;
 		return;
 	}
@@ -364,13 +370,13 @@ void LobbyServer::WriteSocket( sptr_socket socket )
 			socket->fd,
 			reinterpret_cast< const char * >( socket->m_pendingWriteBuffer.data() + totalBytesSent ),
 			chunkSize,
-			0
+			kSendFlags
 		);
 
 		if( bytesSent == SOCKET_ERROR )
 		{
-			const int err = WSAGetLastError();
-			if( err == WSAEWOULDBLOCK )
+			const int err = Platform::LastSocketError();
+			if( Platform::IsWouldBlock( err ) )
 				break;
 
 			Log::Error( "Send failed: {}", err );

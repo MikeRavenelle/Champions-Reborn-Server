@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "Game/GameSessionManager.hpp"
 
 #include "Game/RealmUser.hpp"

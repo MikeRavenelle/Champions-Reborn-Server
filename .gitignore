@@ -33,3 +33,5 @@
 /.vs
 *.pdb
 /obj
+build/
+.env

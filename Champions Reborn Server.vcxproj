@@ -353,7 +353,7 @@
     <ClCompile Include="Source\Network\Event\RequestUserJoinSuccess.cpp" />
     <ClCompile Include="Source\Network\Event\RequestGetSocialListInitial.cpp" />
     <ClCompile Include="Source\Network\GenericNetRequest.cpp" />
-    <ClCompile Include="Source\network\RealmSocket.cpp" />
+    <ClCompile Include="Source\Network\RealmSocket.cpp" />
     <ClCompile Include="Source\stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

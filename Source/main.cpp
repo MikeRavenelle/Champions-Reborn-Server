@@ -1,9 +1,8 @@
-#include "stdafx.h"
 
 #include <atomic>
 #include <csignal>
-#include <winsock2.h>
 
+#include "Common/Platform.hpp"
 #include "logging.hpp"
 #include "configuration.hpp"
 #include "Database/Database.hpp"
@@ -33,10 +32,7 @@ static void ShowStartup()
 
 static bool NetworkStartup()
 {
-	WORD wVersionRequest = MAKEWORD( 2, 2 );
-	WSADATA wsaData;
-
-	if( WSAStartup( wVersionRequest, &wsaData ) != 0 )
+	if( !Platform::NetworkStartup() )
 	{
 		Log::Error( "WSAStartup() failed" );
 		return false;
@@ -47,6 +43,7 @@ static bool NetworkStartup()
 
 int main()
 {
+	setvbuf( stdout, nullptr, _IOLBF, 0 );
 	ShowStartup();
 
 	std::signal( SIGINT, SignalHandler );

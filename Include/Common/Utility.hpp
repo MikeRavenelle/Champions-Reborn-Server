@@ -2,7 +2,7 @@
 
 #include <cstdint>
 #include <string>
-#include <WinSock2.h>
+#include "Common/Platform.hpp"
 
 namespace Util
 {
