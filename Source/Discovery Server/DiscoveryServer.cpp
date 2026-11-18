@@ -94,7 +94,14 @@ void DiscoveryServer::Run()
 			continue;
 		}
 
-		ProcessPacket( &clientAddr, std::make_shared< ByteBuffer >( m_recvBuffer.data(), bytesReceived ) );
+		try
+		{
+			ProcessPacket( &clientAddr, std::make_shared< ByteBuffer >( m_recvBuffer.data(), bytesReceived ) );
+		}
+		catch( const std::exception &e )
+		{
+			Log::Warn( "Malformed discovery packet: {}", e.what() );
+		}
 	}
 }
 

@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <stdexcept>
 #include "Common/ByteStream.hpp"
 
 #include <codecvt>
@@ -233,8 +235,12 @@ std::wstring ByteBuffer::read_utf16( std::optional<uint32_t> length )
 std::string ByteBuffer::read_sz_utf8()
 {
 	std::string value;
-	while( m_buffer[ m_position ] != 0 )
+	while( true )
 	{
+		if( m_position >= m_buffer.size() )
+			throw std::runtime_error( "read_sz_utf8: unterminated string" );
+		if( m_buffer[ m_position ] == 0 )
+			break;
 		value.push_back( m_buffer[ m_position ] );
 		m_position++;
 	}
@@ -247,8 +253,12 @@ std::string ByteBuffer::read_sz_utf8()
 std::wstring ByteBuffer::read_sz_utf16()
 {
 	std::wstring value;
-	while( m_buffer[ m_position ] != 0 || m_buffer[ m_position + 1 ] != 0 )
+	while( true )
 	{
+		if( m_position + 1 >= m_buffer.size() )
+			throw std::runtime_error( "read_sz_utf16: unterminated string" );
+		if( m_buffer[ m_position ] == 0 && m_buffer[ m_position + 1 ] == 0 )
+			break;
 		value.push_back( m_buffer[ m_position ] | ( m_buffer[ m_position + 1 ] << 8 ) );
 		m_position += 2;
 	}
@@ -267,6 +277,8 @@ std::string ByteBuffer::read_encrypted_utf8( bool hasBlockLength )
 	{
 		uint32_t blockLength = read_u32() * 2;
 		decryptedLength = read_u32();
+		if( blockLength < 4 )
+			throw std::runtime_error( "read_encrypted_utf8: invalid block length" );
 		encryptedLength = blockLength - 4;
 	}
 	else
@@ -274,6 +286,9 @@ std::string ByteBuffer::read_encrypted_utf8( bool hasBlockLength )
 		decryptedLength = read_u32();
 		encryptedLength = Util::round_up( decryptedLength, 16 );
 	}
+
+	if( encryptedLength % 16 != 0 || encryptedLength > m_buffer.size() - std::min( m_position, m_buffer.size() ) )
+		throw std::runtime_error( "read_encrypted: invalid encrypted length" );
 
 	std::span< const uint8_t > encryptedBuffer( m_buffer.data() + m_position, encryptedLength );
 
@@ -301,6 +316,8 @@ std::wstring ByteBuffer::read_encrypted_utf16( bool hasBlockLength )
 	{
 		uint32_t blockLength = read_u32() * 2;
 		decryptedLength = read_u32();	// This length is already multiplied by sizeof(wchar_t)
+		if( blockLength < 4 )
+			throw std::runtime_error( "read_encrypted_utf16: invalid block length" );
 		encryptedLength = blockLength - 4;
 	}
 	else
@@ -308,6 +325,9 @@ std::wstring ByteBuffer::read_encrypted_utf16( bool hasBlockLength )
 		decryptedLength = read_u32();
 		encryptedLength = Util::round_up( decryptedLength, 16 );
 	}
+
+	if( encryptedLength % 16 != 0 || encryptedLength > m_buffer.size() - std::min( m_position, m_buffer.size() ) )
+		throw std::runtime_error( "read_encrypted: invalid encrypted length" );
 
 	std::span< const uint8_t > encryptedBuffer( m_buffer.data() + m_position, encryptedLength );
 
@@ -321,8 +341,10 @@ std::wstring ByteBuffer::read_encrypted_utf16( bool hasBlockLength )
 	// Decrypt the buffer
 	std::vector< uint8_t > decryptedBuffer = RealmCrypt::decryptSymmetric( encryptedBuffer );
 
+	decryptedLength = std::min< uint32_t >( decryptedLength, static_cast< uint32_t >( decryptedBuffer.size() ) );
+
 	std::wstring result( decryptedLength / 2, L'\0' );
-	std::memcpy( result.data(), decryptedBuffer.data(), decryptedLength );
+	std::memcpy( result.data(), decryptedBuffer.data(), decryptedLength / 2 * sizeof( wchar_t ) );
 
 	return result;
 }
@@ -351,6 +373,9 @@ void ByteBuffer::write_encrypted_bytes( const std::vector<uint8_t> &value )
 
 std::vector<uint8_t> ByteBuffer::read_bytes( uint32_t length )
 {
+	if( length > m_buffer.size() || m_position > m_buffer.size() - length )
+		throw std::runtime_error( "read_bytes: Attempt to read past end of buffer" );
+
 	std::vector<uint8_t> value( length, 0 );
 
 	std::copy( m_buffer.begin() + m_position, m_buffer.begin() + m_position + length, value.begin() );

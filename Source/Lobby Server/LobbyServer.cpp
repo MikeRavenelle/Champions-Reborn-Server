@@ -70,6 +70,12 @@ void LobbyServer::Start( std::string ip )
 	m_conSocket = OpenListenerSocket( ip, Config::con_lobby_port, RealmGameType::CHAMPIONS_OF_NORRATH );
 	m_rtaSocket = OpenListenerSocket( ip, Config::rta_lobby_port, RealmGameType::RETURN_TO_ARMS );
 
+	if( nullptr == m_conSocket || nullptr == m_rtaSocket )
+	{
+		Log::Error( "Could not open the lobby listener sockets." );
+		return;
+	}
+
 	m_running = true;
 	m_thread = std::thread( &LobbyServer::Run, this );
 
@@ -270,6 +276,13 @@ void LobbyServer::AcceptConnection( sptr_socket srcSocket )
 		return;
 	}
 
+	if( clientSocket >= FD_SETSIZE - 1 || m_clientSockets.size() >= 512 )
+	{
+		Log::Warn( "Connection limit reached, rejecting client." );
+		closesocket( clientSocket );
+		return;
+	}
+
 	auto new_socket = std::make_shared< RealmSocket >();
 	auto gameType = srcSocket->gameType;
 
@@ -324,7 +337,7 @@ void LobbyServer::ReadSocket( sptr_socket socket )
 	{
 		int32_t packetSize = ntohl( *reinterpret_cast< const int32_t * >( &socket->m_pendingReadBuffer[ 0 ] ) );
 
-		if( packetSize <= 0 || packetSize > 2048 )
+		if( packetSize < 6 || packetSize > 2048 )
 		{
 			Log::Error( "Invalid packet size: {}. Disconnecting client.", packetSize );
 			socket->flag.disconnected_wait = true;
@@ -346,13 +359,23 @@ void LobbyServer::ReadSocket( sptr_socket socket )
 
 		if( stream->m_buffer.size() == 0 ) break;
 
-		// Process the packet
-		HandleRequest( socket, stream );
+		try
+		{
+			HandleRequest( socket, stream );
+		}
+		catch( const std::exception &e )
+		{
+			Log::Error( "Malformed packet from {}: {}", socket->remote_ip, e.what() );
+			socket->flag.disconnected_forced = true;
+			return;
+		}
 	}
 }
 
 void LobbyServer::WriteSocket( sptr_socket socket )
 {
+	std::lock_guard< std::mutex > lock( socket->write_mutex );
+
 	if( socket->flag.disconnected_forced || socket->m_pendingWriteBuffer.empty() )
 		return;
 
@@ -397,8 +420,6 @@ void LobbyServer::WriteSocket( sptr_socket socket )
 			break;
 		}
 	}
-
-	std::lock_guard< std::mutex > lock( socket->write_mutex );
 
 	socket->m_pendingWriteBuffer.erase(
 		socket->m_pendingWriteBuffer.begin(),
