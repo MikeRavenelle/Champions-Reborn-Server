@@ -337,7 +337,7 @@ void LobbyServer::ReadSocket( sptr_socket socket )
 	{
 		int32_t packetSize = ntohl( *reinterpret_cast< const int32_t * >( &socket->m_pendingReadBuffer[ 0 ] ) );
 
-		if( packetSize < 6 || packetSize > 2048 )
+		if( packetSize < 4 || packetSize > 2048 )
 		{
 			Log::Error( "Invalid packet size: {}. Disconnecting client.", packetSize );
 			socket->flag.disconnected_wait = true;
@@ -357,7 +357,7 @@ void LobbyServer::ReadSocket( sptr_socket socket )
 			socket->m_pendingReadBuffer.begin() + packetSize
 		);
 
-		if( stream->m_buffer.size() == 0 ) break;
+		if( stream->m_buffer.size() == 0 ) continue;
 
 		try
 		{
